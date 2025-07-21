@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PokéBinder</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #1e1e2f;
+      color: white;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 1.2rem;
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    .binder-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 1rem;
+      padding: 0 60px;
+      box-sizing: border-box;
+    }
+
+    .binder-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .binder-page {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 8px;
+      background: linear-gradient(145deg, #1a1a1a, #000);
+      padding: 20px 15px;
+      border: 4px solid #333;
+      border-radius: 12px;
+      box-shadow: 0 0 15px #444 inset, 0 4px 15px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 600px;
+      aspect-ratio: 3/4;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+      opacity: 1;
+      transform: rotateY(0deg);
+    }
+
+    .page-flip {
+      opacity: 0;
+      transform: rotateY(180deg);
+    }
+
+    .slot {
+      background: #222;
+      border: 2px dashed #555;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      aspect-ratio: 2.5/3.5;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .slot:hover {
+      border-color: #777;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 255, 255, 0.1);
+    }
+
+    .slot.occupied {
+      border-color: #4CAF50;
+      background: #1a2e1a;
+    }
+
+    .slot.last-inserted {
+      border-color: #FFD700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+    }
+
+    .slot img:hover {
+      transform: scale(1.02);
+    }
+
+    .nav-arrow {
+      position: absolute;
+      background: rgba(68, 68, 68, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 24px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(5px);
+      z-index: 10;
+    }
+
+    .nav-arrow:hover:not(:disabled) {
+      background: rgba(102, 102, 102, 0.9);
+      transform: scale(1.1);
+    }
+
+    .nav-arrow:disabled {
+      background: rgba(51, 51, 51, 0.5);
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .nav-left {
+      left: 10px;
+    }
+
+    .nav-right {
+      right: 10px;
+    }
+
+    .page-indicator {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 1rem;
+      text-align: center;
+      background: rgba(68, 68, 68, 0.3);
+      padding: 8px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+    }
+
+    /* Zoom Modal Styles */
+    .zoom-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    }
+
+    .zoom-modal.active {
+      display: flex;
+    }
+
+    .zoom-modal img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+      transition: transform 0.3s ease;
+    }
+
+    .gallery {
+      margin-top: 1rem;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px;
+      border-top: 1px solid #444;
+      border-bottom: 1px solid #444;
+      width: 100%;
+      box-sizing: border-box;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 8px;
+    }
+
+    .gallery .card {
+      flex-shrink: 0;
+      width: 80px;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+      border: 2px solid transparent;
+    }
+
+    .gallery .card:hover,
+    .gallery .card:active {
+      transform: scale(1.05);
+      border-color: #4CAF50;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+      padding: 2rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid #444;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-slots {
+      display: grid;
+      gap: 8px;
+      justify-content: center;
+      margin: 1rem 0;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .modal-slot {
+      width: 80px;
+      height: 115px;
+      background: #333;
+      border: 2px dashed #888;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      aspect-ratio: 2.5/3.5;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .modal-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .modal-slot:hover,
+    .modal-slot:active {
+      background: #444;
+      border-color: #4CAF50;
+      transform: scale(1.05);
+    }
+
+    .modal-slot.occupied {
+      border-color: #4CAF50;
+      background: #1a2e1a;
+    }
+
+    .close-btn,
+    .clear-btn {
+      margin: 0.5rem;
+      background: #444;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      border: none;
+      font-size: 16px;
+      min-height: 44px;
+      touch-action: manipulation;
+      transition: background 0.2s ease;
+    }
+
+    .close-btn:hover,
+    .close-btn:active {
+      background: #666;
+    }
+
+    .clear-btn {
+      background: #d32f2f;
+    }
+
+    .clear-btn:hover {
+      background: #f44336;
+    }
+
+    .filter-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      gap: 15px;
+      flex-wrap: wrap;
+      background: rgba(68, 68, 68, 0.3);
+      padding: 1rem;
+      border-radius: 12px;
+      backdrop-filter: blur(5px);
+    }
+
+    .filter-controls label {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .filter-controls select,
+    .search-input {
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      min-height: 20px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .filter-controls select:hover,
+    .search-input:hover {
+      border-color: #777;
+    }
+
+    .filter-controls select:focus,
+    .search-input:focus {
+      border-color: #4CAF50;
+    }
+
+    .search-input {
+      cursor: text;
+      width: 200px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-top: 1rem;
+      font-size: 14px;
+      color: #ccc;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      background: rgba(68, 68, 68, 0.3);
+      padding: 8px 12px;
+      border-radius: 8px;
+      backdrop-filter: blur(5px);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes insert {
+      0% {
+        transform: scale(0.8) rotate(-5deg);
+        opacity: 0;
+      }
+
+      50% {
+        transform: scale(1.1) rotate(2deg);
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+      }
+    }
+
+    .insert-animation {
+      animation: insert 0.6s ease-out;
+    }
+
+    @media (max-width: 768px) {
+      .binder-container {
+        padding: 0 50px;
+      }
+
+      .nav-arrow {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+      }
+
+      .nav-left {
+        left: 5px;
+      }
+
+      .nav-right {
+        right: 5px;
+      }
+
+      .search-input {
+        width: 150px;
+      }
+
+      .modal-content {
+        padding: 1rem;
+      }
+
+      .modal-slot {
+        width: 60px;
+        height: 85px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .binder-page {
+        gap: 12px;
+        padding: 25px 20px;
+        border-radius: 15px;
+      }
+
+      .slot {
+        border-radius: 10px;
+      }
+
+      .gallery .card {
+        width: 120px;
+      }
+
+      .filter-controls {
+        margin-bottom: 1.5rem;
+      }
+
+      .filter-controls label,
+      .filter-controls select {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>PokéBinder</h1>
+
+  <div class="binder-container">
+    <button class="nav-arrow nav-left" onclick="previousPage()" title="Page précédente">‹</button>
+    <div class="binder-content">
+      <div class="page-indicator" id="pageIndicator">Page 1</div>
+      <div class="binder-page" id="binderPage"></div>
+    </div>
+    <button class="nav-arrow nav-right" onclick="nextPage()" title="Page suivante">›</button>
+  </div>
+
+  <h2>Galerie de cartes</h2>
+  <div class="filter-controls">
+    <label for="setFilter">Extension:</label>
+    <select id="setFilter" onchange="changeSet()">
+      <option value="sv8">Surging Sparks (SV8)</option>
+      <option value="sv7">Stellar Crown (SV7)</option>
+      <option value="sv6">Twilight Masquerade (SV6)</option>
+      <option value="sv5">Temporal Forces (SV5)</option>
+      <option value="sv4">Paradox Rift (SV4)</option>
+      <option value="sv3pt5">Paldean Fates (SV3.5)</option>
+      <option value="sv3">Obsidian Flames (SV3)</option>
+      <option value="sv2">Paldea Evolved (SV2)</option>
+      <option value="sv1">Scarlet & Violet (SV1)</option>
+      <option value="swsh12">Silver Tempest (SWSH12)</option>
+      <option value="swsh11">Lost Origin (SWSH11)</option>
+      <option value="swsh10">Astral Radiance (SWSH10)</option>
+    </select>
+
+    <label for="searchInput">Recherche:</label>
+    <input type="text" id="searchInput" class="search-input" placeholder="Nom de la carte..." oninput="filterCards()">
+
+    <label for="cardTypeFilter">Type:</label>
+    <select id="cardTypeFilter" onchange="filterCards()">
+      <option value="all">Toutes les cartes</option>
+      <option value="Grass">Plante</option>
+      <option value="Fire">Feu</option>
+      <option value="Water">Eau</option>
+      <option value="Lightning">Électrik</option>
+      <option value="Psychic">Psy</option>
+      <option value="Fighting">Combat</option>
+      <option value="Darkness">Ténèbres</option>
+      <option value="Metal">Métal</option>
+      <option value="Dragon">Dragon</option>
+      <option value="Fairy">Fée</option>
+      <option value="Colorless">Incolore</option>
+      <option value="Trainer">Dresseur</option>
+      <option value="Energy">Énergie</option>
+    </select>
+
+    <label for="rarityFilter">Rareté:</label>
+    <select id="rarityFilter" onchange="filterCards()">
+      <option value="all">Toutes</option>
+      <option value="Common">Commune</option>
+      <option value="Uncommon">Peu commune</option>
+      <option value="Rare">Rare</option>
+      <option value="Ultra Rare">Ultra rare</option>
+    </select>
+  </div>
+  <div class="gallery" id="gallery"></div>
+
+  <div class="stats" id="stats">
+    <div class="stat-item">
+      Cartes placées: <span id="placedCount">0</span>
+    </div>
+    <div class="stat-item">
+      Emplacements libres: <span id="freeCount">90</span>
+    </div>
+  </div>
+
+  <div class="modal" id="slotModal">
+    <div class="modal-content">
+      <h3>Choisir un emplacement - Page <span id="modalPageNumber"></span></h3>
+      <div class="modal-slots" id="modalSlots"></div>
+      <div>
+        <button class="clear-btn" onclick="clearCurrentPage()">Vider la page</button>
+        <button class="close-btn" onclick="closeModal()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="zoom-modal" id="zoomModal" onclick="closeZoom()">
+    <img id="zoomedCard" alt="Carte agrandie">
+  </div>
+
+  <script>
+    const API_KEY = "5a891e4a-29b0-4a74-b803-e1caaa949069";
+    const binderPages = [];
+    let currentPageIndex = 0;
+    let selectedCardURL = null;
+    let lastInsertedIndex = null;
+    let allCards = [];
+    let filteredCards = [];
+    let currentSet = "sv8";
+
+    function initBinderPages(totalPages = 10) {
+      for (let i = 0; i < totalPages; i++) {
+        binderPages.push(new Array(9).fill(null));
+      }
+    }
+
+    function renderPage() {
+      const binder = document.getElementById("binderPage");
+      binder.innerHTML = "";
+      const slots = binderPages[currentPageIndex];
+
+      slots.forEach((url, i) => {
+        const slot = document.createElement("div");
+        slot.classList.add("slot");
+        slot.dataset.index = i;
+
+        if (url) {
+          slot.classList.add("occupied");
+          const img = document.createElement("img");
+          img.src = url;
+
+          if (i === lastInsertedIndex) {
+            img.classList.add("insert-animation");
+            slot.classList.add("last-inserted");
+            // Remove the highlight after animation
+            setTimeout(() => {
+              slot.classList.remove("last-inserted");
+              lastInsertedIndex = null;
+            }, 2000);
+          }
+
+          slot.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openZoom(url);
+          });
+
+          // Double-click to remove card
+          slot.addEventListener("dblclick", (e) => {
+            e.stopPropagation();
+            if (confirm("Retirer cette carte de l'emplacement ?")) {
+              binderPages[currentPageIndex][i] = null;
+              renderPage();
+              updateStats();
+            }
+          });
+
+          slot.appendChild(img);
+        }
+
+        binder.appendChild(slot);
+      });
+
+      updatePageIndicator();
+      updateStats();
+    }
+
+    function updatePageIndicator() {
+      document.getElementById("pageIndicator").textContent = `Page ${currentPageIndex + 1}`;
+
+      const prevBtn = document.querySelector('.nav-left');
+      const nextBtn = document.querySelector('.nav-right');
+
+      prevBtn.disabled = currentPageIndex === 0;
+      nextBtn.disabled = currentPageIndex === binderPages.length - 1;
+    }
+
+    function updateStats() {
+      let totalPlaced = 0;
+      binderPages.forEach(page => {
+        page.forEach(slot => {
+          if (slot !== null) totalPlaced++;
+        });
+      });
+
+      const totalSlots = binderPages.length * 9;
+      const freeSlots = totalSlots - totalPlaced;
+
+      document.getElementById("placedCount").textContent = totalPlaced;
+      document.getElementById("freeCount").textContent = freeSlots;
+    }
+
+    function previousPage() {
+      if (currentPageIndex > 0) {
+        const binder = document.getElementById("binderPage");
+        binder.classList.add("page-flip");
+
+        setTimeout(() => {
+          currentPageIndex--;
+          renderPage();
+          binder.classList.remove("page-flip");
+        }, 150);
+      }
+    }
+
+    function nextPage() {
+      if (currentPageIndex < binderPages.length - 1) {
+        const binder = document.getElementById("binderPage");
+        binder.classList.add("page-flip");
+
+        setTimeout(() => {
+          currentPageIndex++;
+          renderPage();
+          binder.classList.remove("page-flip");
+        }, 150);
+      }
+    }
+
+    function changeSet() {
+      currentSet = document.getElementById("setFilter").value;
+      fetchCards();
+      // Clear current filters when switching sets
+      document.getElementById("searchInput").value = "";
+      document.getElementById("cardTypeFilter").value = "all";
+      document.getElementById("rarityFilter").value = "all";
+    }
+
+    function fetchCards() {
+      console.log(`Fetching cards from set: ${currentSet}...`);
+
+      // Show loading indicator
+      const gallery = document.getElementById("gallery");
+      gallery.innerHTML = '<div class="loading"></div><span>Chargement des cartes...</span>';
+
+      fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSet}&pageSize=250`, {
+        headers: {"X-Api-Key": API_KEY}
+      })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          const cards = data.data
+            .filter(c => c.images?.small)
+            .sort((a, b) => Number(a.number) - Number(b.number));
+
+          renderGallery(cards);
+        })
+        .catch(err => {
+          console.error("Erreur API :", err);
+          gallery.innerHTML = '<p style="color: #ff6b6b;">Erreur de chargement des cartes. Veuillez réessayer.</p>';
+        });
+    }
+
+    function renderGallery(cards) {
+      allCards = cards;
+      filteredCards = cards;
+      updateGalleryDisplay();
+    }
+
+    function updateGalleryDisplay() {
+      const gallery = document.getElementById("gallery");
+      gallery.innerHTML = "";
+
+      if (filteredCards.length === 0) {
+        gallery.innerHTML = '<p style="color: #ccc;">Aucune carte trouvée.</p>';
+        return;
+      }
+
+      filteredCards.forEach(card => {
+        const img = document.createElement("img");
+        img.src = card.images.small;
+        img.alt = card.name;
+        img.title = `${card.name} - ${card.rarity || 'Rareté inconnue'}`;
+        img.classList.add("card");
+        img.addEventListener("click", () => openSlotModal(card.images.small));
+        gallery.appendChild(img);
+      });
+    }
+
+    function filterCards() {
+      const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+      const typeFilter = document.getElementById("cardTypeFilter").value;
+      const rarityFilter = document.getElementById("rarityFilter").value;
+
+      filteredCards = allCards.filter(card => {
+        const matchesSearch = card.name.toLowerCase().includes(searchTerm);
+
+        let matchesType = true;
+        if (typeFilter !== "all") {
+          if (typeFilter === "Trainer") {
+            matchesType = card.supertype === "Trainer";
+          } else if (typeFilter === "Energy") {
+            matchesType = card.supertype === "Energy";
+          } else {
+            matchesType = card.types && card.types.includes(typeFilter);
+          }
+        }
+
+        let matchesRarity = true;
+        if (rarityFilter !== "all") {
+          matchesRarity = card.rarity === rarityFilter;
+        }
+
+        return matchesSearch && matchesType && matchesRarity;
+      });
+
+      updateGalleryDisplay();
+    }
+
+    function openSlotModal(cardURL) {
+      selectedCardURL = cardURL;
+      const modal = document.getElementById("slotModal");
+      modal.classList.add("active");
+      document.getElementById("modalPageNumber").textContent = currentPageIndex + 1;
+      document.body.style.overflow = "hidden";
+      renderModalSlots();
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("slotModal");
+      modal.classList.remove("active");
+      document.body.style.overflow = "auto";
+      selectedCardURL = null;
+    }
+
+    function clearCurrentPage() {
+      if (confirm(`Êtes-vous sûr de vouloir vider toute la page ${currentPageIndex + 1} ?`)) {
+        binderPages[currentPageIndex].fill(null);
+        renderPage();
+        renderModalSlots();
+        updateStats();
+      }
+    }
+
+    function renderModalSlots() {
+      const container = document.getElementById("modalSlots");
+      container.innerHTML = "";
+
+      const slots = binderPages[currentPageIndex];
+
+      slots.forEach((url, i) => {
+        const modalSlot = document.createElement("div");
+        modalSlot.classList.add("modal-slot");
+        modalSlot.dataset.index = i;
+
+        if (url) {
+          modalSlot.classList.add("occupied");
+          const img = document.createElement("img");
+          img.src = url;
+          modalSlot.appendChild(img);
+        }
+
+        modalSlot.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Place the card
+          binderPages[currentPageIndex][i] = selectedCardURL;
+          lastInsertedIndex = i;
+          
+          // Update everything
+          renderPage();
+          updateStats();
+          
+          // Close the modal
+          closeModal();
+
+          // Smooth scroll to binder area
+          setTimeout(() => {
+            const binderContainer = document.querySelector(".binder-container");
+            if (binderContainer) {
+              binderContainer.scrollIntoView({behavior: "smooth", block: "center"});
+            }
+          }, 100);
+        });
+
+        container.appendChild(modalSlot);
+      });
+    }
+
+    function openZoom(cardURL) {
+      const zoomModal = document.getElementById("zoomModal");
+      const zoomedCard = document.getElementById("zoomedCard");
+
+      zoomedCard.src = cardURL;
+      zoomModal.classList.add("active");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeZoom() {
+      const zoomModal = document.getElementById("zoomModal");
+      zoomModal.classList.remove("active");
+      document.body.style.overflow = "auto";
+    }
+
+    // Handle window resize for responsive updates
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        renderPage();
+      }, 150);
+    });
+
+    // Prevent zoom modal from closing when clicking on the image
+    document.getElementById("zoomedCard").addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById("slotModal").classList.contains("active") ||
+        document.getElementById("zoomModal").classList.contains("active")) {
+        if (e.key === 'Escape') {
+          closeModal();
+          closeZoom();
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowLeft' && currentPageIndex > 0) {
+        previousPage();
+      } else if (e.key === 'ArrowRight' && currentPageIndex < binderPages.length - 1) {
+        nextPage();
+      }
+    });
+
+    // Initialize app
+    initBinderPages(10);
+    renderPage();
+    fetchCards();
+  </script>
+</body>
+
+</html>
